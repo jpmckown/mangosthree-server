@@ -418,6 +418,8 @@ void Aura::HandlePhase(bool apply, bool Real)
     // no-phase is also phase state so same code for apply and remove
     if (target->GetTypeId() == TYPEID_PLAYER)
     {
+        ((Player*)target)->SendPhaseShift();
+
         SpellAreaForAreaMapBounds saBounds = sSpellMgr.GetSpellAreaForAuraMapBounds(GetId());
         if (saBounds.first != saBounds.second)
         {

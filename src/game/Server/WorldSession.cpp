@@ -1569,81 +1569,23 @@ void WorldSession::SendNotification(int32 string_id, ...)
     }
 }
 
-void WorldSession::SendSetPhaseShift(uint32 phaseMask, uint16 mapId)
+void WorldSession::SendSetPhaseShift(std::set<uint32> const& phaseIds, std::set<uint32> const& terrainSwaps)
 {
     ObjectGuid guid = _player->GetObjectGuid();
 
-    uint32 phaseFlags = 0;
-
-    for (uint32 i = 0; i < sPhaseStore.GetNumRows(); i++)
-    {
-        if (PhaseEntry const* phase = sPhaseStore.LookupEntry(i))
-        {
-            if (phase->PhaseShift == phaseMask)
-            {
-                phaseFlags = phase->Flags;
-                break;
-            }
-        }
-    }
-
-    WorldPacket data(SMSG_SET_PHASE_SHIFT, 30);
+    WorldPacket data(SMSG_SET_PHASE_SHIFT, 1 + 8 + 4 + 4 + 4 + 4 + 2 * phaseIds.size() + 4 + 2 * terrainSwaps.size());
     data.WriteGuidMask<2, 3, 1, 6, 4, 5, 0, 7>(guid);
     data.WriteGuidBytes<7, 4>(guid);
 
-    data << uint32(0);                  // number of WorldMapArea.dbc entries to control world map shift * 2
+    data << uint32(0);                                      // WorldMapArea.dbc ids * 2 (world map shift), unused
 
     data.WriteGuidBytes<1>(guid);
-    data << uint32(phaseMask ? phaseFlags : 8);
+    data << uint32(phaseIds.empty() ? 8 : 0);               // flags, not a phase mask
     data.WriteGuidBytes<2, 6>(guid);
 
-    data << uint32(0);                  // number of inactive terrain swaps * 2
+    data << uint32(0);                                      // inactive terrain swaps * 2, unused
 
-    data << uint32(phaseMask ? 2 : 0);  // WRONG: number of Phase.dbc ids * 2
-    if (phaseMask)
-    {
-        data << uint16(phaseMask);
-    }
-
-    data.WriteGuidBytes<3, 0>(guid);
-
-    data << uint32(mapId ? 2 : 0);      // number of terrains swaps * 2
-    if (mapId)
-    {
-        data << uint16(mapId);
-    }
-
-    data.WriteGuidBytes<5>(guid);
-    SendPacket(&data);
-}
-
-/*
-void WorldSession::SendSetPhaseShift(std::set<uint32> const& phaseIds, std::set<uint32> const& terrainswaps)
-{
-    if (PlayerLoading())
-    {
-        return;
-    }
-
-    ObjectGuid guid = _player->GetObjectGuid();
-
-    WorldPacket data(SMSG_SET_PHASE_SHIFT, 1 + 8 + 4 + 4 + 4 + 4 + 2 * phaseIds.size() + 4 + terrainswaps.size() * 2);
-    data.WriteGuidMask<2, 3, 1, 6, 4, 5, 0, 7>(guid);
-    data.WriteGuidBytes<7, 4>(guid);
-
-    data << uint32(0);
-    //for (uint8 i = 0; i < worldMapAreaCount; ++i)
-    //    data << uint16(0);                    // WorldMapArea.dbc id (controls map display)
-
-    data.WriteGuidBytes<1>(guid);
-    data << uint32(phaseIds.size() ? 0 : 8);  // flags (not phasemask)
-    data.WriteGuidBytes<2, 6>(guid);
-
-    data << uint32(0);                          // Inactive terrain swaps
-    //for (uint8 i = 0; i < inactiveSwapsCount; ++i)
-    //    data << uint16(0);
-
-    data << uint32(phaseIds.size() * 2);        // Phase.dbc ids
+    data << uint32(phaseIds.size() * 2);                    // Phase.dbc ids * 2
     for (std::set<uint32>::const_iterator itr = phaseIds.begin(); itr != phaseIds.end(); ++itr)
     {
         data << uint16(*itr);
@@ -1651,8 +1593,8 @@ void WorldSession::SendSetPhaseShift(std::set<uint32> const& phaseIds, std::set<
 
     data.WriteGuidBytes<3, 0>(guid);
 
-    data << uint32(terrainswaps.size() * 2);    // Active terrain swaps
-    for (std::set<uint32>::const_iterator itr = terrainswaps.begin(); itr != terrainswaps.end(); ++itr)
+    data << uint32(terrainSwaps.size() * 2);                // active terrain swap map ids * 2
+    for (std::set<uint32>::const_iterator itr = terrainSwaps.begin(); itr != terrainSwaps.end(); ++itr)
     {
         data << uint16(*itr);
     }
@@ -1660,7 +1602,6 @@ void WorldSession::SendSetPhaseShift(std::set<uint32> const& phaseIds, std::set<
     data.WriteGuidBytes<5>(guid);
     SendPacket(&data);
 }
-*/
 
 /**
  * @brief Resolves a localized MaNGOS string for this session locale.

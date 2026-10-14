@@ -1089,13 +1089,31 @@ bool ChatHandler::HandleDebugSendLargePacketCommand(char* /*args*/)
 
 bool ChatHandler::HandleDebugSendSetPhaseShiftCommand(char* args)
 {
-    if (!*args)
+    uint32 phaseId;
+    if (!ExtractUInt32(&args, phaseId))
     {
         return false;
     }
 
-    uint32 PhaseShift = atoi(args);
-    m_session->SendSetPhaseShift(PhaseShift);
+    uint32 terrainSwapMapId;
+    if (!ExtractOptUInt32(&args, terrainSwapMapId, 0))
+    {
+        return false;
+    }
+
+    std::set<uint32> phaseIds;
+    if (phaseId)
+    {
+        phaseIds.insert(phaseId);
+    }
+
+    std::set<uint32> terrainSwaps;
+    if (terrainSwapMapId)
+    {
+        terrainSwaps.insert(terrainSwapMapId);
+    }
+
+    m_session->SendSetPhaseShift(phaseIds, terrainSwaps);
     return true;
 }
 

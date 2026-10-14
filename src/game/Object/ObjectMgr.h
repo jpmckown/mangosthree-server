@@ -62,12 +62,18 @@ class ArenaTeam;
 class Item;
 class SQLStorage;
 struct PhaseDefinition;
-struct SpellPhaseInfo;
 
 typedef std::list<PhaseDefinition*> PhaseDefinitionContainer;
 typedef std::unordered_map<uint32 /*zoneId*/, PhaseDefinitionContainer> PhaseDefinitionStore;
 
-typedef std::unordered_map<uint32 /*spellId*/, SpellPhaseInfo*> SpellPhaseStore;
+/// Terrain swap shown to the client while a phase aura is active (`spell_phase`)
+struct SpellPhaseInfo
+{
+    uint32 spellId;                                         ///< spell carrying the phase aura
+    uint32 terrainSwapMap;                                  ///< Map.dbc child map with ParentMapID set
+};
+
+typedef std::unordered_map<uint32 /*spellId*/, SpellPhaseInfo> SpellPhaseStore;
 
 struct GameTele
 {
@@ -1461,6 +1467,11 @@ class ObjectMgr
 
         PhaseDefinitionStore const* GetPhaseDefinitionStore() { return &_PhaseDefinitionStore; }
         SpellPhaseStore const* GetSpellPhaseStore() { return &_SpellPhaseStore; }
+        SpellPhaseInfo const* GetSpellPhaseInfo(uint32 spellId) const
+        {
+            SpellPhaseStore::const_iterator itr = _SpellPhaseStore.find(spellId);
+            return itr != _SpellPhaseStore.end() ? &itr->second : NULL;
+        }
 
     protected:
 

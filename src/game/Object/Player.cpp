@@ -2338,6 +2338,7 @@ void Player::SetGameMaster(bool on)
         }
 
         SetPhaseMask(PHASEMASK_ANYWHERE, false);            // see and visible in all phases
+        SendPhaseShift();
     }
     else
     {
@@ -2362,6 +2363,7 @@ void Player::SetGameMaster(bool on)
         {
             SetPhaseMask(PHASEMASK_NORMAL, false);
         }
+        SendPhaseShift();
 
         if (Pet* pet = GetPet())
         {
@@ -4742,6 +4744,54 @@ void Player::SendInitialPacketsAfterAddToMap()
     UpdateSpeed(MOVE_RUN, true, 1.0f, true);
     UpdateSpeed(MOVE_SWIM, true, 1.0f, true);
     UpdateSpeed(MOVE_FLIGHT, true, 1.0f, true);
+
+    SendPhaseShift();                                       // also clears phases left from the previous map
+}
+
+/**
+ * @brief Tells the client which phases and terrain swaps apply to this player.
+ *
+ * Phase ids come from each phase aura's misc value B (a Phase.dbc id).
+ * Terrain swaps come from `spell_phase` and are sent only when the swap map's
+ * parent is the player's current map. A game master gets an empty shift,
+ * matching the "see all phases" mask set by SetGameMaster.
+ */
+void Player::SendPhaseShift()
+{
+    if (!IsInWorld())
+    {
+        return;                                             // sent again from SendInitialPacketsAfterAddToMap
+    }
+
+    std::set<uint32> phaseIds;
+    std::set<uint32> terrainSwaps;
+
+    if (!isGameMaster())
+    {
+        AuraList const& phases = GetAurasByType(SPELL_AURA_PHASE);
+        for (AuraList::const_iterator itr = phases.begin(); itr != phases.end(); ++itr)
+        {
+            uint32 phaseId = uint32((*itr)->GetMiscBValue());
+            if (phaseId && sPhaseStore.LookupEntry(phaseId))
+            {
+                phaseIds.insert(phaseId);
+            }
+
+            if (SpellPhaseInfo const* info = sObjectMgr.GetSpellPhaseInfo((*itr)->GetId()))
+            {
+                MapEntry const* swapEntry = sMapStore.LookupEntry(info->terrainSwapMap);
+                if (swapEntry && swapEntry->ParentMapID == int32(GetMapId()))
+                {
+                    terrainSwaps.insert(info->terrainSwapMap);
+                }
+            }
+        }
+    }
+
+    DEBUG_FILTER_LOG(LOG_FILTER_VISIBILITY_CHANGES, "Player::SendPhaseShift: %s map %u, %u phase ids, %u terrain swaps",
+        GetGuidStr().c_str(), GetMapId(), uint32(phaseIds.size()), uint32(terrainSwaps.size()));
+
+    GetSession()->SendSetPhaseShift(phaseIds, terrainSwaps);
 }
 
 /**

@@ -203,3 +203,69 @@ void ObjectMgr::LoadCreatureTemplateSpells()
     sLog.outString(">> Loaded %u creature_template_spells definitions", sCreatureTemplateSpellsStorage.GetRecordCount());
     sLog.outString();
 }
+
+/**
+ * @brief Loads the terrain swap each phase spell shows to the client.
+ *
+ * Phase ids come from the aura itself (Spell effect misc value B), so
+ * `spell_phase` only supplies the swap map. Its `phasemask` column is
+ * ignored: the aura's misc value is authoritative.
+ */
+void ObjectMgr::LoadSpellPhaseInfo()
+{
+    _SpellPhaseStore.clear();                               // for reload case
+
+    uint32 count = 0;
+    QueryResult* result = WorldDatabase.Query("SELECT `id`, `terrainswapmap` FROM `spell_phase`");
+
+    if (!result)
+    {
+        BarGoLink bar(1);
+        bar.step();
+        sLog.outString(">> Loaded 0 spell phase terrain swaps, table `spell_phase` is empty");
+        sLog.outString();
+        return;
+    }
+
+    BarGoLink bar(result->GetRowCount());
+
+    do
+    {
+        bar.step();
+
+        Field* fields = result->Fetch();
+
+        SpellPhaseInfo info;
+        info.spellId        = fields[0].GetUInt32();
+        info.terrainSwapMap = fields[1].GetUInt32();
+
+        SpellEntry const* spellInfo = sSpellStore.LookupEntry(info.spellId);
+        if (!spellInfo)
+        {
+            sLog.outErrorDb("Table `spell_phase` has nonexistent spell %u, skipped.", info.spellId);
+            continue;
+        }
+
+        if (!IsSpellHaveAura(spellInfo, SPELL_AURA_PHASE))
+        {
+            sLog.outErrorDb("Table `spell_phase` has spell %u without a SPELL_AURA_PHASE effect, skipped.", info.spellId);
+            continue;
+        }
+
+        MapEntry const* mapEntry = sMapStore.LookupEntry(info.terrainSwapMap);
+        if (!mapEntry || mapEntry->ParentMapID < 0)
+        {
+            sLog.outErrorDb("Table `spell_phase` has spell %u with terrain swap map %u that is not a child map, skipped.", info.spellId, info.terrainSwapMap);
+            continue;
+        }
+
+        _SpellPhaseStore[info.spellId] = info;
+        ++count;
+    }
+    while (result->NextRow());
+
+    delete result;
+
+    sLog.outString(">> Loaded %u spell phase terrain swaps", count);
+    sLog.outString();
+}

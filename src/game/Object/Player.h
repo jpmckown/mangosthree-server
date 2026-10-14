@@ -1132,6 +1132,7 @@ class Player : public Unit
 
         void SendInitialPacketsBeforeAddToMap();
         void SendInitialPacketsAfterAddToMap();
+        void SendPhaseShift();                              ///< send phase ids and terrain swaps of active phase auras
         void SendInstanceResetWarning(uint32 mapid, Difficulty difficulty, uint32 time);
 
         /// Raid-frame (CompactUnitFrame) profiles; \c NULL slots are unused.

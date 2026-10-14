@@ -514,6 +514,9 @@ bool World::SetInitialWorldSettings()
     sLog.outString("Loading SpellArea Data...");            // must be after quest load
     sSpellMgr.LoadSpellAreas();
 
+    sLog.outString("Loading Spell Phase terrain swaps...");
+    sObjectMgr.LoadSpellPhaseInfo();
+
     sLog.outString("Loading AreaTrigger definitions...");
     sObjectMgr.LoadAreaTriggerTeleports();                  // must be after item template load
 
